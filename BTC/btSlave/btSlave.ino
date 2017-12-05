@@ -7,7 +7,6 @@ void setup() {
 
 void loop() {
   while(Serial.available()){
-      digitalWrite(13,isL = !isL);
-    }
+    digitalWrite(13,isL = !isL);
   }
 }
