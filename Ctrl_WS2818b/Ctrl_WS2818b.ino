@@ -7,9 +7,9 @@
 #define DEBUG ON
 
 //定义LED灯串的基本属性
-uint16_t pixelCount = 12; //定义控制的个数
-uint8_t pixelPin = 7;   //定义引脚
-NeoPixelBus<NeoGrbFeature, Neo800KbpsMethod> strip(pixelCount, pixelPin); //定义实例
+uint16_t PixelCount = 9; //定义控制的个数
+uint8_t pixelPin = 6;   //定义引脚
+NeoPixelBus<NeoGrbFeature, Neo800KbpsMethod> strip(PixelCount, pixelPin); //定义实例
 HslColor lampHslColor;
 
 struct Cmd {
@@ -26,7 +26,7 @@ void setup() {
 }
 
 void setOFF() {
-  for (int i = 0; i < pixelCount; i++) {
+  for (int i = 0; i < PixelCount; i++) {
     strip.SetPixelColor(i, RgbColor(0));
   }
   strip.Show();
@@ -37,14 +37,14 @@ void loop() {
     cmd.head = Serial.read();
     cmd.num = Serial.parseFloat();
     switch (cmd.head) {
-      case 'H': lampHslColor.H = cmd.num; break;
-      case 'S': lampHslColor.S = cmd.num; break;
-      case 'L': lampHslColor.L = cmd.num; break;
+      case 'H': lampHslColor.H = cmd.num / 360.0F; break;
+      case 'S': lampHslColor.S = cmd.num / 100.0F; break;
+      case 'L': lampHslColor.L = cmd.num / 100.0F; break;
       case 'P': isOpen = !isOpen;break;
       case 'C': isOpen = false;break;
     }
     if (isOpen) {
-      for (int i = 0; i < pixelCount; i++) {
+      for (int i = 0; i < PixelCount; i++) {
         strip.SetPixelColor(i, lampHslColor);
       }
       strip.Show();
@@ -55,7 +55,7 @@ void loop() {
 Serial.print("head:");Serial.println(cmd.head);
 Serial.print("num:");Serial.println(cmd.num);
 Serial.print("isOpen:");Serial.println(isOpen);
-Serial.print("pixelCount:");Serial.println(pixelCount);
+Serial.print("pixelCount:");Serial.println(PixelCount);
 Serial.println("---------");
 #endif
   } 
