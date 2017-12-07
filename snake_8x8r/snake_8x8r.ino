@@ -1,42 +1,8 @@
-#include <boarddefs.h>
-#include <IRremote.h>
-#include <IRremoteInt.h>
-#include <ir_Lego_PF_BitStreamEncoder.h>
-
-#define MYDEBUG 0
-
-IRrecv irc(2);
-decode_results r;
-
-const long
-CHS = 0xFFA25D,
-CH = 0x629D,
-CHP = 0xFFE21D,
-PREV = 0xFF22DD,
-NEXT = 0xFF02FD,
-PL_PA = 0xFFC23D,
-VOLS = 0xFFE01F,
-VOLP = 0xFFA857,
-EQ = 0xFF906F,
-K0 = 0xFF6897,
-K100P = 0xFF9867,
-K200P = 0xFFB04F,
-K1 = 0xFF30CF,
-K2 = 0xFF18E7,
-K3 = 0xFF7A85,
-K4 = 0xFF10EF,
-K5 = 0xFF38C7,
-K6 = 0xFF5AA5,
-K7 = 0xFF42BD,
-K8 = 0xFF4AB5,
-K9 = 0xFF52AD,
-DOWN = 0xFFFFFFFF;
-
 typedef enum dir{STAY, NORTH, SOUTH, WEST, EAST}Dir;
 
 class Snake {
   private:
-    int len, spe;
+    int len, spe;//长度和速度
     bool isStay;
     Dir nowDir;
     void setLenSpe(int len, int spe){
@@ -140,8 +106,8 @@ class Food{
 class Led8x8 {
   private:
     char led8x8[8][8] = {{0}};
-    int h[8] = {A0, A1, 12, 11, A5, A4, A3, A2};
-    int l[8] = {10, 9, 8, 7, 6, 5, 4, 3};
+    int h[8] = {13, 12, 11, 10, A5, A4, A3, A2};
+    int l[8] = {9, 8, 7, 6, 5, 4, 3, 2};
   public:
     void Reset() {
       for (int i = 0; i < 8; i++) {
@@ -209,8 +175,9 @@ class Led8x8 {
 
 Led8x8 led8x8;
 Snake snake(1, 1);
-Food food (6,6);
-Dir dir = STAY;
+Food food (6, 6);
+Dir dir = STAY,
+  inDir = STAY;
 
 int count = 0;
 bool 
@@ -218,63 +185,57 @@ gameOver = false,
 once = true;
 
 void setup() {
-  Serial.begin(9600);
-  irc.enableIRIn();
+  randomSeed(analogRead(0));
+  Serial.begin(38400);
   led8x8.InitLed();
+  snake.setHead(random(8), random(8));
+  food.setFood(random(8), random(8));
 }
 
 void loop() {
-  if (irc.decode(&r)) {
-#if MYDEBUG
-  if (r.value != DOWN) Serial.println(r.value, HEX);
-#endif
-    switch (r.value){
-      case EQ:gameOver = !gameOver;
-      case K5:dir = STAY;break;
-      case K2:if(snake.getNowDir() != SOUTH)dir = NORTH;break;
-      case K8:if(snake.getNowDir() != NORTH)dir = SOUTH;break;
-      case K4:if(snake.getNowDir() != EAST)dir = WEST;break;
-      case K6:if(snake.getNowDir() != WEST)dir = EAST;break;
+  /* 方向控制 */
+  if (Serial.available()) {
+    inDir = Serial.read() - '0';
+    switch (inDir){
+      case 9:gameOver = !gameOver;
+      case STAY:dir = STAY;break;
+      case NORTH:if(snake.getNowDir() != SOUTH)dir = NORTH;break;
+      case SOUTH:if(snake.getNowDir() != NORTH)dir = SOUTH;break;
+      case WEST:if(snake.getNowDir() != EAST)dir = WEST;break;
+      case EAST:if(snake.getNowDir() != WEST)dir = EAST;break;
       default:break;
-    } irc.resume();
+    }
   }
+  /* gameOver为真时显示图像 */
   if (!gameOver){
+    /* 欢迎动画 */
     if (once) {
       once = !once;
       led8x8.Welcome();
       led8x8.Reset();
     }
+    /* count到达snake.spe时移动一次 */
     if (count >= snake.getSpe()){
       count = 0;
-      snake.mov(dir);
+      snake.mov(dir);//移动
+      /* 吃到自己，重新开始 */
       if (snake.eatSelf()) {
         led8x8.Clear();
         snake.reset();
         food.reset(snake);
         led8x8.Welcome();
+        dir = STAY;
       }
+      /* 吃到食物，长度加一 */
       if (led8x8.EatFood(snake, food)){
         snake.addLen();
         food.reset(snake);
       }
-#if MYDEBUG
-    Serial.println("in debug:");
-    Serial.println(snake.getLen());
-    for (int i = 0; i < snake.getLen(); i++){
-      Serial.println("------------");
-      Serial.println(snake.snake[i][0]);
-      Serial.println(snake.snake[i][1]);
-      Serial.println(led8x8.EatFood(snake, food));
-      Serial.println(snake.eatSelf());
-      Serial.println("------------");
-    }
-#endif
     }
     count++;
-    led8x8.UpdateMap(snake, food);
-    led8x8.Display();
+    led8x8.UpdateMap(snake, food);//更新地图
+    led8x8.Display();//显示图像
   }else{
-    once = true;
+    once = true;//保证欢迎动画只显示一次
   }
 }
-
