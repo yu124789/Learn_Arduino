@@ -2,6 +2,7 @@
 
 #include <IRremote.h>
 
+//测得的红外遥控器按键编码
 const long
 CHS = 0xFFA25D, CH = 0xFF629D, CHP = 0xFFE21D,
 PREV = 0xFF22DD, NEXT = 0xFF02FD, PLPA = 0xFFC23D,
@@ -18,30 +19,62 @@ decode_results results;
 
 long code;
 int aspd;
+int count;
+bool openSR04;
+bool openIOA; //红外避障
+bool openLT;  //寻线
 
 void setup() {
+#if MYDEBUG
   altar.moveTest();
+#endif
   Serial.begin(9600);
   irrecv.enableIRIn();
+  count = 0;
+  openIOA = openSR04 = false;
 }
 
 void loop() {
+
   if (irrecv.decode(&results)) {
     aspd = altar.getSpeed();
     code = results.value;
-    //Serial.println(t, HEX);
+#if MYDEBUG
+    Serial.println(code, HEX);
+#endif
     switch (code) {
-      case D1:altar.turnLeft();break;
-      case D2:altar.goFront();break;
-      case D3:altar.turnRight();break;
-      case D4:altar.rotaLeft();break;
-      case D5:altar.stopA();break;
-      case D6:altar.rotaRight();break;
-      case D8:altar.goBack();break;
-      case VOLS:altar.setSpeedA(aspd -= 5);break;
-      case VOLP:altar.setSpeedA(aspd += 5);break;
-      case EQ:altar.setSpeedA(aspd = 200);break;
+      case D1: altar.turnLeft(); break;
+      case D2: altar.goFront(); break;
+      case D3: altar.turnRight(); break;
+      case D4: altar.rotaLeft(); break;
+      case D5: altar.stopA(); break;
+      case D6: altar.rotaRight(); break;
+      case D8: altar.goBack(); break;
+      case VOLS: altar.setSpeedA(aspd -= 5); break;
+      case VOLP: altar.setSpeedA(aspd += 5); break;
+      case EQ: altar.setSpeedA(aspd = 200); break;
+      case PLPA: openSR04 = !openSR04; break;
+      case NEXT: openIOA = !openIOA; break;
     }
     irrecv.resume();
   }
+
+  if (openSR04) {
+    if (count++ == 32767) {
+      count = 0;
+      int dis = altar.keepDis();
+#if MYDEBUG
+      Serial.println(dis);
+#endif
+    }
+  }
+
+  if (openIOA) {
+    altar.keepDir();
+  }
+
+  if (openLT) {
+    altar.lineTracking();
+  }
+
 }
