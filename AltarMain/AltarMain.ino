@@ -1,60 +1,111 @@
-#ifndef ALTARHEDD_H
-#define ALTARHEDD_H
+#include "AltarHead.h"
 
-#define MYDEBUG 0
+#include <IRremote.h>
 
-#include <Arduino.h>
+//测得的红外遥控器按键编码
+const long
+CHS = 0xFFA25D, CH = 0xFF629D, CHP = 0xFFE21D,
+PREV = 0xFF22DD, NEXT = 0xFF02FD, PLPA = 0xFFC23D,
+VOLS = 0xFFE01F, VOLP = 0xFFA857, EQ = 0xFF906F,
+D0 = 0xFF6897, D100P = 0xFF9867, D200P = 0xFFB04F,
+D1 = 0xFF30CF, D2 = 0xFF18E7, D3 = 0xFF7A85,
+D4 = 0xFF10EF, D5 = 0xFF38C7, D6 = 0xFF5AA5,
+D7 = 0xFF42BD, D8 = 0xFF4AB5, D9 = 0xFF52AD;
 
-#include <SR04.h>
+Altar altar;
 
-typedef enum _MoveState {
-  FRONT, BACK, STOP,
-} MoveState;
+IRrecv irrecv(11);
+decode_results results;
 
-class Altar {
-  private:
-    int pin_LF, pin_LB, pin_RF, pin_RB; //电机引脚
-    int pin_IRLeft, pin_IRRight;  //红外避障引脚
-    int pin_IRLeftx, pin_IRRightx;  //寻线引脚
+long code;
+int aspd;
+int count;
+bool openSR04;
+bool openIOAR; //红外避障转向
+bool openIOA; //红外避障
+bool openLT;  //寻线
+bool hasBTS;
+char mes;
 
-    /* 超声波模块 */
-    int pin_Echo, pin_Trig;
-    SR04* sr04p;
-    int distance_;
-
-    int speed_; //0~255
-    int upperDis_, lowerDis_; //最远和最近的距离
-    MoveState moveState_;
-  public:
-    Altar();
-    ~Altar();
-
-    Altar setSpeedA(int spd);
-    Altar setRange(int upperDis, int lowerDis);
-
-    Altar resetSpeed();
-
-    int getSpeed();
-    int getDis();
-
-    int keepDis();
-    void keepDir();
-    void lineTracking();
-    void keepState();
-
-    Altar goFront();
-    Altar goBack();
-    Altar turnLeft();
-    Altar turnRight();
-    Altar turnLeftb();
-    Altar turnRightb();
-    Altar rotaLeft();
-    Altar rotaRight();
-    Altar stopA();
+void setup() {
 #if MYDEBUG
-    void moveTest();
-    void IRTest(); //红外测试
+  altar.moveTest();
 #endif
-};
+  Serial.begin(38400); 
+  irrecv.enableIRIn();
+  count = 0;
+  hasBTS = openIOAR = openIOA = openSR04 = false;
+}
 
-#endif
+void loop() {
+
+  if (Serial.available()) {
+    hasBTS = true;
+    mes = Serial.read();
+    switch (mes) {
+      case '1': code = D2; break;
+      case '2': code = D6; break;
+      case '3': code = D8; break;
+      case '4': code = D4; break;
+      case '5': code = D3; break;
+      case '6': code = D9; break;
+      case '7': code = D7; break;
+      case '8': code = D1; break;
+      case '0':
+      case 's':
+      case 'S': code = D5; break;
+      case 'g':
+      case 'G': openSR04 = openIOAR = !openIOAR; break;
+      case 'x':
+      case 'X': openLT = !openLT; break;
+      case 'b':
+      case 'B': openIOA = !openIOA; break;
+    }
+  }
+
+  if (irrecv.decode(&results) || hasBTS) {
+    aspd = altar.getSpeed();
+    if (!hasBTS) {
+      code = results.value;
+    }
+    switch (code) {
+      case D1: altar.turnLeft(); break;
+      case D2: altar.goFront(); break;
+      case D3: altar.turnRight(); break;
+      case D4: altar.rotaLeft(); break;
+      case D5: altar.stopA(); break;
+      case D6: altar.rotaRight(); break;
+      case D7: altar.turnLeftb(); break;
+      case D8: altar.goBack(); break;
+      case D9: altar.turnRightb(); break;
+      case VOLS: altar.setSpeedA(aspd -= 5); break;
+      case VOLP: altar.setSpeedA(aspd += 5); break;
+      case EQ: altar.resetSpeed(); break;
+      case PLPA: openIOAR = openSR04 = !openSR04; break;
+      case NEXT: openIOA = !openIOA; break;
+      case PREV: openLT = !openLT; break;
+    }
+    irrecv.resume();
+    hasBTS = false;
+  }
+
+  if (openSR04) {
+    if (count++ == 32767) {
+      count = 0;
+      int dis = altar.keepDis();
+    }
+  }
+
+  if (openIOAR) {
+    altar.keepDir();
+  }
+
+  if (openLT) {
+    altar.lineTracking();
+  }
+
+  if (openIOA) {
+    altar.IOA();
+  }
+
+}
