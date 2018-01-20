@@ -142,7 +142,7 @@ void Altar::keepDir() {
   bool noLeft = digitalRead(pin_IRLeft);
   bool noRight = digitalRead(pin_IRRight);
   if (noLeft == noRight) {
-    keepState();
+    keepDis();
   } else if (noLeft) {
     turnRight();
   } else {
@@ -176,6 +176,25 @@ void Altar::lineTracking() {
   }
 }
 
+void Altar::IOA() {
+  bool noLeft = digitalRead(pin_IRLeft);
+  bool noRight = digitalRead(pin_IRRight);
+  
+  if (noLeft == noRight) {
+    if (noLeft) { 
+      keepState();
+    } else {
+      rotaRight();
+    }
+  } else {
+    if (noLeft) {
+      rotaLeft();
+    } else {
+      rotaRight();
+    }
+  }
+}
+
 #if MYDEBUG
 void Altar::moveTest() {
   goFront(); delay(400);
@@ -194,4 +213,3 @@ void Altar::IRTest() {
   Serial.println(digitalRead(pin_IRRightx));
 }
 #endif
-
