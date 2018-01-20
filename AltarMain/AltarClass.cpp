@@ -28,8 +28,23 @@ Altar Altar::setSpeedA(int spd) {
   return *this;
 }
 
+Altar Altar::setRange(int upperDis, int lowerDis) {
+  upperDis_ = upperDis;
+  lowerDis_ = lowerDis;
+  return *this;
+}
+
+Altar Altar::resetSpeed() {
+  speed_ = 200;
+  return *this;
+}
+
 int Altar::getSpeed() {
   return speed_;
+}
+
+int Altar::getDis() {
+  return distance_ = sr04p->Distance();
 }
 
 Altar Altar::goFront() {
@@ -66,6 +81,22 @@ Altar Altar::turnRight() {
   return *this;
 }
 
+Altar Altar::turnLeftb() {
+  analogWrite(pin_LF, 0);
+  analogWrite(pin_RF, 0);
+  analogWrite(pin_RB, 0);
+  analogWrite(pin_LB, speed_);
+  return *this;
+}
+
+Altar Altar::turnRightb() {
+  analogWrite(pin_LF, 0);
+  analogWrite(pin_RF, 0);
+  analogWrite(pin_LB, 0);
+  analogWrite(pin_RB, speed_);
+  return *this;
+}
+
 Altar Altar::rotaLeft() {
   analogWrite(pin_LF, 0);
   analogWrite(pin_RB, 0);
@@ -91,14 +122,12 @@ Altar Altar::stopA() {
   return *this;
 }
 
-int Altar::getDis() {
-  return distance_ = sr04p->Distance();
-}
-
-Altar Altar::setRange(int upperDis, int lowerDis) {
-  upperDis_ = upperDis;
-  lowerDis_ = lowerDis;
-  return *this;
+void Altar::keepState() {
+  switch (moveState_) {
+    case STOP: stopA(); break;
+    case FRONT: goFront(); break;
+    case BACK: goBack(); break;
+  }
 }
 
 int Altar::keepDis() {
@@ -113,11 +142,7 @@ void Altar::keepDir() {
   bool noLeft = digitalRead(pin_IRLeft);
   bool noRight = digitalRead(pin_IRRight);
   if (noLeft == noRight) {
-    switch (moveState_) {
-      case STOP: stopA(); break;
-      case FRONT: goFront(); break;
-      case BACK: goBack(); break;
-    }
+    keepState();
   } else if (noLeft) {
     turnRight();
   } else {
@@ -126,7 +151,29 @@ void Altar::keepDir() {
 }
 
 void Altar::lineTracking() {
-
+  bool noLeft = digitalRead(pin_IRLeftx);
+  bool noRight = digitalRead(pin_IRRightx);
+  if (noLeft == noRight) {
+    if (noLeft) {  //低电平表示是黑色的...
+      stopA();
+    } else {
+      keepState();
+    }
+  } else {
+    if (noLeft) {
+      if (moveState_ == FRONT || moveState_ == STOP) {
+        turnRight(); 
+      } else if (moveState_ == BACK) {
+        turnLeftb();
+      }
+    } else {
+      if (moveState_ == FRONT || moveState_ == STOP) {
+        turnLeft();
+      } else if (moveState_ == BACK) {
+        turnRightb();
+      }
+    }
+  }
 }
 
 #if MYDEBUG
