@@ -41,6 +41,7 @@ class Altar {
     void keepDir();
     void lineTracking();
     void keepState();
+    void IOA();
 
     Altar goFront();
     Altar goBack();
